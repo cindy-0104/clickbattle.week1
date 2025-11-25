@@ -16,9 +16,7 @@
             background: #fef7e6;
             font-family: sans-serif;
             overflow: hidden;
-            /* 스크롤 방지 */
             touch-action: none;
-            /* 모바일 스크롤 방지 */
         }
 
         .screen {
@@ -27,6 +25,9 @@
 
         #selectScreen {
             text-align: center;
+            position: relative;
+            width: 100%;
+            height: 100%;
         }
 
         .choice {
@@ -102,7 +103,6 @@
             font-size: 20px;
             animation: blink 1s infinite;
             display: block;
-            /* 항상 표시 */
             z-index: 9999;
         }
 
@@ -119,6 +119,20 @@
                 opacity: 0;
             }
         }
+
+        /* ★★★ 뒤로가기 버튼 스타일 ★★★ */
+        .backBtn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: white;
+            padding: 10px 14px;
+            border-radius: 10px;
+            box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            font-weight: bold;
+            z-index: 99999;
+        }
     </style>
 </head>
 
@@ -126,7 +140,9 @@
 
     <!-- 선택 화면 -->
     <div id="selectScreen" class="screen">
+        <div class="backBtn" onclick="goBack()">← 뒤로가기</div>
         <h2>버려진 포켕몬들이야. 한 마리를 데려가렴</h2>
+
         <div class="choice" onclick="selectAnimal('pikachu.png')">
             <img src="pikachu.png"><br>피캌츄
         </div>
@@ -140,10 +156,13 @@
 
     <!-- 게임 화면 -->
     <div id="finalScreen" class="screen">
+        <div class="backBtn" onclick="goBack()">← 뒤로가기</div>
+
         <div id="status">
             나도 드디어 주인이 생겼어,,, 떠돌이가 아니야
             <p>날 눌러서 키워줘 주인</p>
         </div>
+
         <img id="finalAnimal" src="">
         <div id="arrow">⬆️ 멈추면 안돼… 계속 쓰다듬어줘…</div>
     </div>
@@ -151,18 +170,18 @@
     <script>
         document.getElementById("selectScreen").style.display = "block";
 
+        /* --------- 변수들 --------- */
         let health = 100;
         let alive = true;
         let scale = 0.25;
         const maxScale = 2;
-
         let firstPhase = true;
-
         let moveX = 0;
         let dir = 1;
         const moveSpeed = 2;
-
         let touching = false;
+        let msgIndex = 0;
+        let msgTimer = null;
 
         const fallMessages = [
             "몸이 아파..",
@@ -172,17 +191,41 @@
             "살고 싶어... 😢",
             "사랑해줘... 😨"
         ];
-        let msgIndex = 0;
-        let msgTimer = null;
 
         const animalEl = document.getElementById("finalAnimal");
         const statusEl = document.getElementById("status");
-        const arrowEl = document.getElementById("arrow");
 
-        /* 동물 선택 */
+        /* ★★★ 뒤로가기 기능 ★★★ */
+        function goBack() {
+            // 화면 전환
+            document.getElementById("finalScreen").style.display = "none";
+            document.getElementById("selectScreen").style.display = "block";
+
+            // 상태 초기화
+            health = 100;
+            alive = true;
+            scale = 0.25;
+            firstPhase = true;
+            moveX = 0;
+            dir = 1;
+            touching = false;
+            msgIndex = 0;
+
+            animalEl.src = "";
+            animalEl.style.transform = `translate(-50%, -50%) scale(0.25)`;
+            statusEl.innerHTML = "나도 드디어 주인이 생겼어,,, 떠돌이가 아니야<p>날 눌러서 키워줘 주인</p>";
+
+            if (msgTimer) clearInterval(msgTimer);
+            msgTimer = null;
+        }
+
+        /* ------------------------------------------ */
+        /*               동물 선택                    */
+        /* ------------------------------------------ */
         function selectAnimal(src) {
             document.getElementById("selectScreen").style.display = "none";
             document.getElementById("finalScreen").style.display = "block";
+
             animalEl.src = src;
 
             startMovement();
@@ -191,11 +234,8 @@
             const healEvent = (e) => {
                 const pos = getXY(e);
 
-                if (firstPhase) {
-                    grow();
-                } else {
-                    heal(20);
-                }
+                if (firstPhase) grow();
+                else heal(20);
 
                 createHeart(pos.x, pos.y);
             };
@@ -230,17 +270,16 @@
 
         /* 쓰러짐 */
         function fallDown() {
-            if (!alive) return; // 이미 쓰러짐 처리됨
+            if (!alive) return;
             alive = false;
             health = 0;
 
-            animalEl.style.transform = `translate(calc(-50% + ${moveX}px), -50%) rotate(-90deg) scale(${scale})`;
+            animalEl.style.transform =
+                `translate(calc(-50% + ${moveX}px), -50%) rotate(-90deg) scale(${scale})`;
 
-            // 즉시 첫 문구 표시
             statusEl.textContent = fallMessages[msgIndex % fallMessages.length];
             msgIndex++;
 
-            // 이후 순환
             if (msgTimer) clearInterval(msgTimer);
             msgTimer = setInterval(() => {
                 statusEl.textContent = fallMessages[msgIndex % fallMessages.length];
@@ -267,11 +306,14 @@
         function revive() {
             alive = true;
             statusEl.textContent = "다시 움직일게… 고마워… 🥺";
+
             if (msgTimer) {
                 clearInterval(msgTimer);
                 msgTimer = null;
             }
-            animalEl.style.transform = `translate(calc(-50% + ${moveX}px), -50%) scale(${scale})`;
+
+            animalEl.style.transform =
+                `translate(calc(-50% + ${moveX}px), -50%) scale(${scale})`;
         }
 
         /* 성장 */
@@ -283,7 +325,8 @@
                 fallDown();
             }
 
-            animalEl.style.transform = `translate(calc(-50% + ${moveX}px), -50%) scale(${scale})`;
+            animalEl.style.transform =
+                `translate(calc(-50% + ${moveX}px), -50%) scale(${scale})`;
         }
 
         /* 하트 */
